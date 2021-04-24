@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
-    "start": "node app"
+    "start": "NODE_ENV=development NODE_CONFIG_DIR=./configs/app node app"
   },
   "dependencies": {
     "axios": "^0.21.1",
