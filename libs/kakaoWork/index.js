@@ -15,6 +15,15 @@ exports.getUserList = async () => {
   return res.data.users;
 };
 
+//유저 한명 정보 가져오기
+exports.getUserInfo = async({userId}) => {
+	let getUserInfourl = 'v1/users.info?user_id=' + String(userId) + '';
+	//console.log(getUserInfourl);
+	const res = await kakaoInstance.get(getUserInfourl);
+	//console.log(res.data);
+	return res.data.user;
+}
+
 // 채팅방 생성 (2)
 exports.openConversations = async ({ userId }) => {
   const data = {
@@ -33,4 +42,22 @@ exports.sendMessage = async ({ conversationId, text, blocks }) => {
   };
   const res = await kakaoInstance.post('/v1/messages.send', data);
   return res.data.message;
+};
+	
+	
+// 카카오 워크 스페이스 정보 확인
+exports.checkWorkSpace = async () => {
+  const res = await kakaoInstance.get('/v1/spaces.info');
+  return res.data.space;
+	
+	//주석된 코드는 routes/index.js에서 space 출력하는 방법입니다.
+	//checkWorkSpace() 함수의 결과값 확인 가능
+	//const space = await libKakaoWork.checkWorkSpace();
+	//console.log(space);
+};
+	
+// 카카오 워크 부서 정보 확인
+exports.checkDepartments = async () => {
+  const res = await kakaoInstance.get('/v1/departments.list');
+  return res.data.departments;
 };
