@@ -5,25 +5,7 @@
 
 var commit_cnt = []; // commit 횟수를 저장하는 배열
 
-// parameter: commit_cnt
-// ranking 배열을 반환하는 함수
-function ranking(cnt) {
-	var n = cnt.length;
-	rank = [];
-
-	for (var i = 0; i < n; i++) rank[i] = 1;
-
-	for (var i = 0; i < n; i++) {
-		for (var j = 0; j < n; j++) {
-			if (cnt[i] < cnt[j]) rank[i]++;
-		}
-	}
-
-	return rank;
-}
-
-// 알고리즘 문제풀이 (PS) 스터디를 위한 일반 메뉴
-const study_menu_message = [
+var study_menu_message = [
 	{
 		type: 'header',
 		text: '알고있니 (Algo-Git-니)',
@@ -77,6 +59,23 @@ const study_menu_message = [
 		style: 'default',
 	},
 ];
+
+// parameter: commit_cnt
+// ranking 배열을 반환하는 함수
+function ranking(cnt) {
+	var n = cnt.length;
+	rank = [];
+
+	for (var i = 0; i < n; i++) rank[i] = 1;
+
+	for (var i = 0; i < n; i++) {
+		for (var j = 0; j < n; j++) {
+			if (cnt[i] < cnt[j]) rank[i]++;
+		}
+	}
+
+	return rank;
+}
 
 // 이 방식을 사용하려면 dictionary같은거를 써서
 // git 닉네임에 인덱스를 부여해야 할 것 같아요
@@ -293,6 +292,22 @@ router.post('/request', async (req, res, next) => {
 					blocks: [
 						{
 							type: 'label',
+							text: '*⚠️  필수 세팅*',
+							markdown: true,
+						},
+						{
+							type: 'label',
+							text:
+								'스터디를 진행할 *GitHub Repo* 에 *WebHook* 설정이 필요합니다. 자세한 사항은 Repo 등록 후 안내해드리겠습니다!\n\n',
+							markdown: true,
+						},
+						{
+							type: 'label',
+							text: '*💻  GitHub Repo 정보*',
+							markdown: true,
+						},
+						{
+							type: 'label',
 							text: '스터디를 진행할 *GitHub Repo* 의\n*URL*을 입력해주세요!',
 							markdown: true,
 						},
@@ -390,12 +405,118 @@ router.post('/callback', async (req, res, next) => {
 			break;
 
 		case 'confirm_study_repo':
-			// Callback 통해서 계속하여 Bot 인터랙션 유도해야 함 (대화 형식)
-			// - 획득 뱃지 보기, 추천 문제 받기, 도움말 보기 Action 버튼
 			libKakaoWork.sendMessage({
 				conversationId: message.conversation_id,
 				text: '알고있니 봇',
-				blocks: study_menu_message,
+				blocks: [
+					{
+						type: 'image_link',
+						url:
+							'https://images.velog.io/images/jaeeunxo1/post/b809e9c6-b5af-4cce-a13f-c9a745b4f4bb/768px-Ei-sc-github.svg.png',
+					},
+					{
+						type: 'text',
+						text: '*WebHook 설정하기*',
+						markdown: true,
+					},
+					{
+						type: 'text',
+						text:
+							'원활한 스터디 진행을 위해서는 GitHub Repo 에 WebHook 을 필수적으로 세팅해줘야 합니다. 아래 문서를 참고하여, 설정을 완료해주세요!\n',
+						markdown: true,
+					},
+					{
+						type: 'context',
+						content: {
+							type: 'text',
+							text:
+								'[GitHub WebHook 설정 방법](https://www.notion.so/haero/GitHub-WebHook-48a29c9e0395497eb60d59fa48587d13)',
+							markdown: true,
+						},
+						image: {
+							type: 'image_link',
+							url:
+								'https://t1.kakaocdn.net/kakaowork/resources/block-kit/context/pdf@3x.png',
+						},
+					},
+					{
+						type: 'divider',
+					},
+					{
+						type: 'text',
+						text: '이후 *설정 완료* 버튼을 눌러주세요!',
+						markdown: true,
+					},
+					{
+						action_type: 'submit_action',
+						action_name: 'complete_setting',
+						value: 'complete_setting',
+						type: 'button',
+						text: '설정 완료',
+						style: 'default',
+					},
+				],
+			});
+			break;
+
+		case 'complete_setting':
+			libKakaoWork.sendMessage({
+				conversationId: message.conversation_id,
+				text: '알고있니 봇',
+				blocks: [
+					{
+						type: 'header',
+						text: '알고있니 (Algo-Git-니)',
+						style: 'blue',
+					},
+					{
+						type: 'image_link',
+						url:
+							'https://www.pewresearch.org/internet/wp-content/uploads/sites/9/2017/02/PI_2017.02.08_Algorithms_featured.png',
+					},
+					{
+						type: 'text',
+						text: '*📝 PS (알고리즘) 스터디 진행 안내*',
+						markdown: true,
+					},
+					{
+						type: 'text',
+						text: '원하시는 메뉴를 선택해주세요!\n',
+						markdown: true,
+					},
+					{
+						type: 'button',
+						text: '스터디 현황 보기',
+						action_type: 'submit_action',
+						action_name: 'show_study_data',
+						value: 'show_study_data',
+						style: 'primary',
+					},
+					{
+						type: 'button',
+						text: '획득한 뱃지 보기',
+						action_type: 'submit_action',
+						action_name: 'show_badge',
+						value: 'show_badge',
+						style: 'primary',
+					},
+					{
+						type: 'button',
+						text: '추천 문제 받기',
+						action_type: 'submit_action',
+						action_name: 'show_recommend_problem',
+						value: 'show_recommend_problem',
+						style: 'primary',
+					},
+					{
+						action_type: 'submit_action',
+						action_name: 'help',
+						type: 'button',
+						value: 'help',
+						text: '도움말 보기',
+						style: 'default',
+					},
+				],
 			});
 			break;
 
