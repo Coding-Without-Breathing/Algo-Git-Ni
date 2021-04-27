@@ -1,7 +1,7 @@
 ![title](https://user-images.githubusercontent.com/30336663/116290582-9633a280-a7ce-11eb-9849-61d981b946f0.jpg)
 
 <h1 align="center">알고있니? (Algo-Git-니) </h1>
-<p align="center">소프트웨어 마에스트로 12기 과정의 미니 프로젝트로써 기획 및 개발된 <strong>알고있니 봇</strong>은 카카오 워크 앱에서 작동되는 <strong>Node.js 기반의 챗봇</strong>입니다. 봇 이름인 '알고있니' 는 <strong>Algorithm 의 '알고' + Git 의 '있' (C적 허용) + '니'</strong> 로 이루어져있어, 봇이 제공하는 두 가지 큰 기능을 상징적으로 나타냅니다.</p>
+<p align="center">소프트웨어 마에스트로 12기 과정의 미니 프로젝트로써 기획 및 개발된 <strong>알고있니 봇</strong>은<br>카카오 워크 앱의 채팅방에서 대화하며 작동되는 <strong>Node.js 기반의 챗봇</strong>입니다.<br> 봇 이름인 '알고있니' 는 <strong>Algorithm 의 '알고' + Git 의 '있' (C적 허용) + '니'</strong> 로 이루어져있어,<br>봇이 제공하는 두 가지 큰 기능을 상징적으로 나타냅니다.</p>
 &nbsp &nbsp 
 
 ## 알고있니 봇의 탄생
