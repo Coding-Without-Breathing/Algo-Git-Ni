@@ -10,9 +10,11 @@
     "body-parser": "~1.18.2",
     "config": "^3.3.6",
     "cookie-parser": "~1.4.3",
+    "csv-parser": "^3.0.0",
     "debug": "~2.6.9",
+    "dotenv": "^8.2.0",
     "express": "~4.15.5",
-    "follow-redirects": "^1.14.0",
+    "mongoose": "^5.12.5",
     "morgan": "~1.9.0"
   }
 }

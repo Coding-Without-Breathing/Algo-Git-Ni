@@ -6,9 +6,12 @@ const cookieParser = require('cookie-parser');
 const bodyParser = require('body-parser');
 
 const index = require('./routes/index');
+const mongoose = require('mongoose');
+const dotenv = require('dotenv');
 
 const app = express();
 
+dotenv.config();
 app.use(logger('dev'));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
@@ -35,5 +38,17 @@ app.use(function(err, req, res, next) {
 });
 
 app.listen(process.env.PORT || 3000, () => console.log('Example app listening on port 3000!'));
+
+const db = mongoose.connection;
+db.on('error', console.error);
+db.once('open', function () {
+	console.log('connet!');
+});
+mongoose.connect(process.env.MONGO_URI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true,
+  useFindAndModify: false,
+  useCreateIndex: true,
+});
 
 module.exports = app;

@@ -1,4 +1,4 @@
-import mongoose from 'mongoose';
+const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
 	id: {
@@ -6,7 +6,7 @@ const userSchema = new mongoose.Schema({
 		required: true,
 		trim: true
 	},
-	problem: [int],
+	problem: [String],
 	url: {
 		type: String
 	}
@@ -14,11 +14,10 @@ const userSchema = new mongoose.Schema({
 
 const problemSchema = new mongoose.Schema({
 	problem: {
-		type: int
+		type: String
 	},
 	user: [String]
 });
 
-const User = new mongoose.model('User', userSchema);
-const Problem = new mongoose.model('Problem', problemSchema);
-export {User, Problem};
+exports.User = new mongoose.model('User', userSchema);
+exports.Problem = new mongoose.model('Problem', problemSchema);

@@ -104,3 +104,6 @@ dist
 .tern-port
 goorm.manifest
 configs
+
+# User CSV data
+user_info.csv

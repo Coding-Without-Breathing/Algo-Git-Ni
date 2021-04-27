@@ -1,8 +1,13 @@
+const express = require('express');
+const router = express.Router();
+const app = require('./app');
+const { User, Problem } = require('../model/schema.js');
+const libKakaoWork = require('../libs/kakaoWork');
+
 //
 // 커밋 횟수, 랭킹을 DB를 사용하지 않고
 // 배열로 관리할 수도 있습니다!
 //
-
 var commit_cnt = []; // commit 횟수를 저장하는 배열
 
 var study_menu_message = [
@@ -81,18 +86,30 @@ function ranking(cnt) {
 // git 닉네임에 인덱스를 부여해야 할 것 같아요
 //
 
-const express = require('express');
-const router = express.Router();
-const app = require('./app');
-
-module.exports = router;
-
-const libKakaoWork = require('../libs/kakaoWork');
+// parameter: Git Nickname
+// Commit Data Crawling
+// commitlist에 이번달 Commit 데이터가 배열로 들어가있음, 27일이면 0~26까지 존재
+function commit_Crawling(Nickname) {
+	axios.get('https://github-calendar.herokuapp.com/commits/' + Nickname).then((crawlData) => {
+		var today = new Date();
+		var commitstring = JSON.stringify(crawlData.data);
+		var commitlist = commitstring.substring(9, commitstring.length - 2).split(',');
+		commitlist = commitlist.slice(
+			commitlist.length - today.getDate() - 1,
+			commitlist.length - 1
+		);
+		for (var i = 0; i < commitlist.length; i++) {
+			console.log(i + 1 + '일: ' + commitlist[i]);
+		}
+		// 여기서 git 닉네임에 해당하는 인덱스를 만들고 데이터를 저장하는게 나을지도..?
+	});
+}
 
 // 커밋 챌린지 코드 작성 공간
-router.use('/app', app);
+router.use('/app', app.router);
 
 router.get('/', async (req, res, next) => {
+	
 	/*
 	 * 워크 스페이스에 있는 19팀을 찾아보았습니다.
 	 * 워크스페이스 내 나뉘어진 부서들의 정보를 확인
@@ -128,7 +145,11 @@ router.get('/', async (req, res, next) => {
 	**/
 	// 유저 목록 검색 (1)
 	const users = await libKakaoWork.getUserList();
-	const team19_users = [/*2611564,*/ 2612127 /*,2612207,2615809,2610786,2610805 */];
+	const team19_users = [
+		/*2611564,*/ 2612127,
+		/* 2612207, 2615809,
+		2610786,*/ 2610805,
+	];
 
 	//누가 이 workspace 내에 있나 확인
 	//users.map((user) => {console.log(user.id + user.name);});
@@ -199,6 +220,10 @@ router.get('/', async (req, res, next) => {
 		),
 	]);
 
+	// hmk test begin
+	commit_cnt = app.readCSV();
+	// hmk test end
+
 	res.json({ team19_users, conversations, messages });
 });
 
@@ -243,26 +268,15 @@ router.post('/request', async (req, res, next) => {
 				view: {
 					//이름, Repo URL
 					// \(^오^)/
-					title: 'modal title',
-					accept: '확인',
+					title: 'Commit Challenge 참가하기',
+					accept: '정보 전송하기',
 					decline: '취소',
-					value: '{request_modal의 응답으로 전송한 value 값}',
+					value: 'create_commit_challenge_results',
 					blocks: [
 						{
 							type: 'label',
-							text: '커밋 챌린지 개설하기',
+							text: '커밋 챌린지 참가하기',
 							markdown: true,
-						},
-						{
-							type: 'label',
-							text: '이름',
-							markdown: true,
-						},
-						{
-							type: 'input',
-							name: 'user_name',
-							required: true,
-							placeholder: '본인의 이름을 입력해주세요.',
 						},
 						{
 							type: 'label',
@@ -315,7 +329,23 @@ router.post('/request', async (req, res, next) => {
 							type: 'input',
 							name: 'repo_url',
 							required: true,
-							placeholder: 'https://github.com/ps-stydy/Algo-Git-Ni',
+							placeholder: 'ex) https://github.com/ps-stydy/Algo-Git-Ni',
+						},
+						{
+							type: 'label',
+							text: '*🖐🏻  스터디 리더 정보*',
+							markdown: true,
+						},
+						{
+							type: 'label',
+							text: '팀장 GitHub ID',
+							markdown: true,
+						},
+						{
+							type: 'input',
+							name: 'github_id',
+							required: true,
+							placeholder: 'ex) H43RO',
 						},
 					],
 				},
@@ -337,15 +367,99 @@ router.post('/request', async (req, res, next) => {
 
 router.post('/callback', async (req, res, next) => {
 	const { message, actions, action_time, value } = req.body;
+	const axios = require('axios');
+	const fs = require('fs');
 	switch (value) {
+		case 'create_commit_challenge_results':
+			const github_url = 'https://github.com/' + actions.git_name;
+			axios
+				.get(github_url)
+				.then((Response) => {
+					// commit_Crawling(actions.git_name);
+					if (Response.status === 200) {
+						// 유저 이름이 올바른 경우
+						if (app.checkUserExist(commit_cnt, actions.git_name)) {
+							// 유저가 이미 챌린지에 포함되어 있음
+							libKakaoWork.sendMessage({
+								conversationId: message.conversation_id,
+
+								text: '알고있니 봇',
+								blocks: [
+									{
+										type: 'header',
+										text: '커밋 챌린지 참가 오류 안내',
+										style: 'blue',
+									},
+									{
+										type: 'text',
+										text: `${actions.git_name}은 커밋 챌린지에 이미 참가되어 있습니다.\n다른 Git 아이디를 입력해 주세요.`,
+										markdown: true,
+									},
+								],
+							});
+						} else {
+							// 유저가 챌린지에 포함되어있지 않음
+							const userCommits = app
+								.getUserCommits(actions.git_name)
+								.then((commits) => {
+									fs.appendFile(
+										'user_info.csv',
+										`\n${actions.git_name},${commits}`,
+										function (err) {
+											if (err) throw err;
+										}
+									);
+									commit_cnt.push({ id: actions.git_name, count: commits });
+								});
+							libKakaoWork.sendMessage({
+								conversationId: message.conversation_id,
+								text: '알고있니 봇',
+								blocks: [
+									{
+										type: 'header',
+										text: '커밋 챌린지 참여 안내',
+									},
+									{
+										type: 'text',
+										text:
+											'커밋 챌린지 신청이 완료되었습니다! 매일 10시에 관련 알람을 받아보실 수 있습니다.',
+									},
+								],
+							});
+						}
+					}
+				})
+				.catch((Error) => {
+					libKakaoWork.sendMessage({
+						conversationId: message.conversation_id,
+						text: '알고있니 봇',
+						blocks: [
+							{
+								type: 'label',
+								text: '말씀하신 id를 찾을 수 없었습니다\n다시 시도해 주세요',
+							},
+							{
+								type: 'button',
+								text: '바이바이',
+								style: 'default',
+							},
+						],
+					});
+				});
 		case 'create_ps_study_results':
-			const axios = require('axios');
 			axios
 				.get(actions.repo_url)
 				.then((Response) => {
 					console.log(Response.status);
 					// 만약 유효한 레포를 입력받았을 경우 (성공)
 					if (Response.status == 200) {
+						// GitHub ID, Repo URL insert
+						var user = new User({
+							id: actions.github_id,
+							url: actions.repo_url
+						})
+						user.save();
+						
 						libKakaoWork.sendMessage({
 							conversationId: message.conversation_id,
 							text: '등록 성공!',
@@ -358,7 +472,7 @@ router.post('/callback', async (req, res, next) => {
 								{
 									type: 'text',
 									text:
-										'성공적으로 Repo 가 확인되었습니다. 해당 Repo 로 스터디를 진행하시겠습니까?',
+										`${actions.github_id}님, 성공적으로 Repo 가 확인되었습니다. 해당 Repo 로 스터디를 진행하시겠습니까?`,
 									markdown: true,
 								},
 								{
@@ -390,9 +504,28 @@ router.post('/callback', async (req, res, next) => {
 							text: '알고있니 봇',
 							blocks: [
 								{
+									type: 'text',
+									text: '*잘못된 GitHub Repo 입니다.*',
+									markdown: true,
+								},
+								{
+									type: 'text',
+									text:
+										'URL 이 잘못되었거나 존재하지 않는 Repo 입니다. 확인 후 다시 입력해주세요!',
+									markdown: true,
+								},
+								{
 									type: 'button',
-									text: '다시하셈 ㅋㅋ',
-									style: 'default',
+									text: '다시 입력하기',
+									action_type: 'call_modal',
+									value: 'create_ps_study',
+									style: 'primary',
+								},
+								{
+									type: 'button',
+									text: 'Repo 생성하기',
+									action_type: 'open_system_browser',
+									value: 'https://github.com/new',
 								},
 							],
 						});
@@ -530,3 +663,5 @@ router.post('/callback', async (req, res, next) => {
 
 	res.json({ result: true });
 });
+
+module.exports = router;
