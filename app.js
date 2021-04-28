@@ -8,6 +8,7 @@ const bodyParser = require('body-parser');
 const index = require('./routes/index');
 const mongoose = require('mongoose');
 const dotenv = require('dotenv');
+const mongodb = require("start-mongodb");
 
 const app = express();
 
@@ -19,7 +20,7 @@ app.use(cookieParser());
 
 app.use('/', index);
 
-// catch 404 and forward to error handler
+// catch 404 and forward to error handlers
 app.use(function(req, res, next) {
   const err = new Error('Not Found');
   err.status = 404;
@@ -39,6 +40,7 @@ app.use(function(err, req, res, next) {
 
 app.listen(process.env.PORT || 3000, () => console.log('Example app listening on port 3000!'));
 
+mongodb.start('../../data/db');
 const db = mongoose.connection;
 db.on('error', console.error);
 db.once('open', function () {
