@@ -10,6 +10,7 @@ const fs = require('fs');
 // user_info.csv - 백업용, user_info_data - 실제 사용
 var user_info_data;
 
+
 // 커밋 횟수, 랭킹을 DB를 사용하지 않고
 // 배열로 관리할 수도 있습니다! Good!
 
@@ -96,6 +97,34 @@ function ranking(cnt) {
 	return rank;
 }
 
+function eval(u_rank, u_rate){
+	var p = u_rank * 100 / user_info_data.length;
+	
+	// 사람이 매우 적을때 - 달성률만 가지고 판단한다
+	if(user_info_data.length <= 3){
+		if(u_rate == 100) return "ヾ(≧▽≦*)o\n성실하게 참여하고 있군요!! 앞으로도 이대로만 합시다!";
+		if(u_rate >= 80) return "( •̀'ω •́')✧\n열심히 참여하고 있군요!! 조금만 더 열심히 해볼까요??";
+		if(u_rate >= 40) return "ผ(•̀_•́ผ)\n순위는 높지만 달성률은 다소 낮네요... 그래도 포기하지 않는다면 좋은 결과 있을거예요!!";
+		return "이번달에 많이 바쁘셨나봐요... 남은 요일 열심히 해보아요!";
+	}
+	//
+	
+	if(p <= 25 && u_rate >= 80){
+		if(u_rate == 100) return "ヾ(≧▽≦*)o\n성실하게 참여하고 있군요! 앞으로도 이대로만 합시다!";
+		return "( •̀'ω •́')✧\n열심히 참여하고 있군요! 조금만 더 열심히 해볼까요?";
+	}
+	else if(p <= 25){
+		if(u_rate >= 40) return "ผ(•̀_•́ผ)\n포기하지 않는다면 좋은 결과 있을거예요! 파이팅!!";
+		return "이번달에 많이 바쁘셨나봐요... 남은 요일 열심히 해보아요!";
+	}
+	else if(p >= 50 && u_rate >= 80)
+		return "( •̀'ω •́')✧\n 지금까지 열심히 하고 있습니다! 조금만 더 열심히 해볼까요?";
+	else if(u_rate >= 40)
+		return "ผ(•̀_•́ผ)\n아직까지는 괜찮아요! 포기하지 않는다면 좋은 결과 있을거예요!";
+	else
+		return "이번달에 많이 바쁘셨나봐요... 남은 요일 열심히 해보아요!";
+}
+
 // arch_rate: 달성률 반환 함수
 // parameter: count - 현재까지의 커밋 횟수 합
 // return: 달성률(integer)
@@ -109,7 +138,8 @@ function achi_rate(count) {
 // check_rank: 자신의 랭킹을 반환하는 함수
 // parameter: obj - csv 객체, user - user id
 // return: 자신의 랭킹(integer)
-function check_rank(obj, user) {
+function check_rank(user) {
+	var obj = user_info_data;
 	var commit_cnt = [];
 	var idx = -1;
 
@@ -122,6 +152,7 @@ function check_rank(obj, user) {
 
 	return rank[idx];
 }
+// obj.git_id를 obj.conversation_id로 바꿔야하나
 
 // 이 방식을 사용하려면 dictionary같은거를 써서/
 // git 닉네임에 인덱스를 부여해야 할 것 같아요
@@ -130,21 +161,13 @@ function check_rank(obj, user) {
 // parameter: Git Nickname
 // Commit Data Crawling
 // commitlist에 이번달 Commit 데이터가 배열로 들어가있음, 27일이면 0~26까지 존재
-function commit_Crawling(Nickname) {
-	axios.get('https://github-calendar.herokuapp.com/commits/' + Nickname).then((crawlData) => {
-		var today = new Date();
-		var commitstring = JSON.stringify(crawlData.data);
-		var commitlist = commitstring.substring(9, commitstring.length - 2).split(',');
-		commitlist = commitlist.slice(
-			commitlist.length - today.getDate() - 1,
-			commitlist.length - 1
-		);
-		for (var i = 0; i < commitlist.length; i++) {
-			console.log(i + 1 + '일: ' + commitlist[i]);
-		}
-		// 여기서 git 닉네임에 해당하는 인덱스를 만들고 데이터를 저장하는게 나을지도..?
-	});
-}
+const getHtml = async (git_name) => {
+  try {
+    return await axios.get('https://github-calendar.herokuapp.com/commits/' + git_name);
+  } catch (error) {
+    console.error(error);
+  }
+};
 
 router.get('/', async (req, res, next) => {
 	/*
@@ -183,13 +206,15 @@ router.get('/', async (req, res, next) => {
 	**/
 	// 유저 목록 검색 (1)
 	const users = await libKakaoWork.getUserList();
-	const team19_users = [/*2611564,*/ /*2612127 /*2612207, */ 2615809, /*2610786, 2610805*/];
+	const team19_users = [2611564/*, 2612127 2612207/*, */ /*2615809 /*,2610786, 2610805*/];
 
 	//누가 이 workspace 내에 있나 확인
 	//users.map((user) => {console.log(user.id + user.name);});
-
 	//우리 팀
 	console.log(team19_users);
+	
+	// call data from .csv file on server start
+	user_info_data = app.readCSV();
 
 	// 검색된 모든 유저에게 각각 채팅방 생성 (2)
 	//현재 팀에게만 메시지를 보냅니다.
@@ -198,64 +223,123 @@ router.get('/', async (req, res, next) => {
 		team19_users.map((userid) => libKakaoWork.openConversations({ userId: userid }))
 	);
 
+	console.log(conversations);
 	// 생성된 채팅방에 메세지 전송 (3)
 	const messages = await Promise.all([
-		conversations.map((conversation) =>
-			libKakaoWork.sendMessage({
-				conversationId: conversation.id,
-				text: '커밋 챌린지 | PS 스터디 개설 안내',
-				blocks: [
-					{
-						type: 'header',
-						text: '알고있니 (Algo-Git-니)',
-						style: 'blue',
-					},
-					{
-						type: 'image_link',
-						url:
-							'https://www.pewresearch.org/internet/wp-content/uploads/sites/9/2017/02/PI_2017.02.08_Algorithms_featured.png',
-					},
-					{
-						type: 'text',
-						text: '📝  *알고있니? 이런 기능.*',
-						markdown: true,
-					},
-					{
-						type: 'text',
-						text:
-							'알고있니 봇은 Git 커밋 챌린지 개설 기능, 알고리즘 문제풀이 (PS) 스터디 개설 기능을 지원합니다!\n\n 원하시는 기능을 선택해주세요!',
-						markdown: true,
-					},
-					{
-						type: 'button',
-						action_type: 'call_modal',
-						value: 'create_commit_challenge',
-						text: '커밋 챌린지',
-						style: 'primary',
-					},
-					{
-						type: 'button',
-						action_type: 'call_modal',
-						value: 'create_ps_study',
-						text: 'PS 스터디 개설하기',
-						style: 'primary',
-					},
-					{
-						type: 'button',
-						action_type: 'submit_action',
-						action_name: 'help',
-						value: 'help',
-						text: '도움말 보기',
-						style: 'default',
-					},
-				],
+		conversations.map((conversation) =>	{
+			var isData = false;
+			user_info_data.map((user_info) => {
+				if(user_info.conversation_id == conversation.id)
+					isData = true;
 			})
+			if(isData){ // commit 기능에서 이미 데이터에 등록되어있는 경우
+				libKakaoWork.sendMessage({
+					conversationId: conversation.id,
+					text: '커밋 챌린지 | PS 스터디 개설 안내',
+					blocks: [
+						{
+							type: 'header',
+							text: '알고있니 (Algo-Git-니)',
+							style: 'blue',
+						},
+						{
+							type: 'image_link',
+							url:
+								'https://www.pewresearch.org/internet/wp-content/uploads/sites/9/2017/02/PI_2017.02.08_Algorithms_featured.png',
+						},
+						{
+							type: 'text',
+							text: '📝  *알고있니? 이런 기능.*',
+							markdown: true,
+						},
+						{
+							type: 'text',
+							text:
+								'알고있니 봇은 Git 커밋 챌린지 개설 기능, 알고리즘 문제풀이 (PS) 스터디 개설 기능을 지원합니다!\n\n 원하시는 기능을 선택해주세요!',
+							markdown: true,
+						},
+						{
+							type: 'button',
+							action_type: 'submit_action',
+							action_name: 'show_commit_challenge',
+							value: 'show_commit_challenge',
+							text: '커밋 챌린지',
+							style: 'primary',
+						},
+						{
+							type: 'button',
+							action_type: 'call_modal',
+							value: 'create_ps_study',
+							text: 'PS 스터디 개설하기',
+							style: 'primary',
+						},
+						{
+							type: 'button',
+							action_type: 'submit_action',
+							action_name: 'help',
+							value: 'help',
+							text: '도움말 보기',
+							style: 'default',
+						},
+					],
+				})
+			}
+			else{ // 등록되어있지않은경우
+				libKakaoWork.sendMessage({
+					conversationId: conversation.id,
+					text: '커밋 챌린지 | PS 스터디 개설 안내',
+					blocks: [
+						{
+							type: 'header',
+							text: '알고있니 (Algo-Git-니)',
+							style: 'blue',
+						},
+						{
+							type: 'image_link',
+							url:
+								'https://www.pewresearch.org/internet/wp-content/uploads/sites/9/2017/02/PI_2017.02.08_Algorithms_featured.png',
+						},
+						{
+							type: 'text',
+							text: '📝  *알고있니? 이런 기능.*',
+							markdown: true,
+						},
+						{
+							type: 'text',
+							text:
+								'알고있니 봇은 Git 커밋 챌린지 개설 기능, 알고리즘 문제풀이 (PS) 스터디 개설 기능을 지원합니다!\n\n 원하시는 기능을 선택해주세요!',
+							markdown: true,
+						},
+						{
+							type: 'button',
+							action_type: 'call_modal',
+							value: 'create_commit_challenge',
+							text: '커밋 챌린지 참가하기',
+							style: 'primary',
+						},
+						{
+							type: 'button',
+							action_type: 'call_modal',
+							value: 'create_ps_study',
+							text: 'PS 스터디 개설하기',
+							style: 'primary',
+						},
+						{
+							type: 'button',
+							action_type: 'submit_action',
+							action_name: 'help',
+							value: 'help',
+							text: '도움말 보기',
+							style: 'default',
+						},
+					],
+				})
+			}
+			}
 		),
 	]);
 
-	// hmk test begin
-	// commit_cnt = app.readCSV();
-	// hmk test end
+	
 
 	res.json({ team19_users, conversations, messages });
 });
@@ -301,23 +385,6 @@ router.post('/request', async (req, res, next) => {
 	const { message, value } = req.body;
 	switch (value) {
 		case 'create_commit_challenge':
-			var User_id = message.user_id;
-
-			var flag = false;
-			for (var i = 0; i < user_info_data.length; i++) {
-				if (user_info_data[i].user_id == User_id) {
-					flag = true;
-					break;
-				}
-			}
-
-			if (flag) {
-				return res.json({
-					
-					
-					
-				});
-			} else {
 				return res.json({
 					view: {
 						title: 'Commit Challenge 참가하기',
@@ -332,6 +399,11 @@ router.post('/request', async (req, res, next) => {
 							},
 							{
 								type: 'label',
+								text: '반갑습니다!🎉🎉 Algo-Git-니 커밋 챌린지 기능은 참가자의 일일 커밋을 독려하여 잔디밭을 만들도록 돕는 기능입니다! 지금 바로 참가하여 풍성한 잔디밭을 만들어보아요!!🔥🔥 \n\n',
+								markdown: true,
+							},
+							{
+								type: 'label',
 								text: '본인의 *GitHub ID*를 입력해주세요!',
 								markdown: true,
 							},
@@ -341,11 +413,14 @@ router.post('/request', async (req, res, next) => {
 								required: true,
 								placeholder: 'ex) Algogitni',
 							},
+							{
+								type: 'label',
+								text: '"정보 전송하기" 버튼을 누르면 사용자의 개인 Git commit 데이터 사용에 동의하는것으로 간주합니다.\n또한 private Git Repository에서의 Commit은 확인할 수 없으니 유의해주시기 바랍니다!',
+								markdown: true,
+							},
 						],
 					},
 				});
-			}
-
 			break;
 
 		case 'create_ps_study':
@@ -413,18 +488,181 @@ router.post('/request', async (req, res, next) => {
 
 router.post('/callback', async (req, res, next) => {
 	const { message, actions, action_time, value, react_user_id } = req.body;
-	console.log('callback' + req.body);
+	// console.log('callback' + req.body);
 	switch (value) {
+		case 'show_commit_challenge':
+				var idx = -1;
+				for(var i = 0; i < user_info_data.length; i++){
+					if(user_info_data[i].conversation_id == message.conversation_id){
+						idx = i; break;
+					}
+				}
+			
+				libKakaoWork.sendMessage({
+					conversationId: message.conversation_id,
+					text: "알고있니 봇",
+					  blocks: [
+						{
+						  type: "header",
+						  text: "내 정보 확인",
+						  style: "blue"
+						},
+						 {
+							type: 'image_link',
+							url:
+								'https://cdn.pixabay.com/photo/2017/08/05/11/24/logo-2582757_960_720.png',
+						},
+						{
+						  type: "text",
+						  text: `${user_info_data[idx].git_id}님은 현재 커밋 챌린지에 참가하고 있습니다.\n\n순위와 달성률 정보를 확인할 수 있습니다.\n\n순위의 기준은 전날입니다!`,
+						  markdown: true
+						},
+						{
+						  type: "button",
+						  text: "오늘 커밋 여부 확인",
+						  action_type: 'submit_action',
+						  action_name: 'today_commit',
+						  value: 'today_commit'
+						},
+						{
+						  type: "button",
+						  text: "순위 보기",
+						  style: "default",
+						  action_type: 'submit_action',
+						  action_name: 'user_rank',
+						  value: 'user_rank'
+						},
+						{
+						  type: "button",
+						  text: "달성률 확인",
+						  action_type: 'submit_action',
+						  action_name: 'rate',
+						  value: 'rate'
+						}
+					  ]
+				});
+			break;
+		case 'today_commit':
+			var idx = -1;
+			for(var i = 0; i < user_info_data.length; i++){
+				if(user_info_data[i].conversation_id == message.conversation_id){
+					idx = i; break;
+				}
+			}
+			var commit_cnt = 0;
+			getHtml(user_info_data[idx].git_id).then(crawlData => {
+				var commitstring = JSON.stringify(crawlData.data);
+				var commitlist = commitstring.substring(9, commitstring.length - 2).split(',');
+				return commitlist[commitlist.length-1];
+			}).then(res => {
+					console.log(res)
+					commit_cnt = res;
+					libKakaoWork.sendMessage({
+						conversationId: message.conversation_id,
+						text: "알고있니 (Algo-Git-니)",
+						  blocks: [
+							{
+							  type: "header",
+							  text: "오늘의 커밋",
+							  style: "blue"
+							},
+							{
+								type: 'image_link',
+								url:
+									'https://cdn.pixabay.com/photo/2014/07/15/23/36/github-394322_1280.png',
+							},
+							{
+							  type: "text",
+							  text: `오늘 커밋은 ${commit_cnt}번 했습니다.\n\n`,
+							  markdown: true
+							}
+						  ]
+					});
+				});	
+			
+			break;
+			
+		case 'rate':
+			var idx = -1;
+			for(var i = 0; i < user_info_data.length; i++){
+				if(user_info_data[i].conversation_id == message.conversation_id){
+					idx = i; break;
+				}
+			}
+			//function eval(u_rank, u_rate)
+			
+			var comment = eval(user_info_data[idx].today_rank, achi_rate(user_info_data[idx].today_count));
+			
+			// 달성률 선택
+				libKakaoWork.sendMessage({
+					conversationId: message.conversation_id,
+					text: "알고있니 (Algo-Git-니)",
+					  blocks: [
+						{
+						  type: "header",
+						  text: "달성률 알림",
+						  style: "blue"
+						},
+						{
+							type: 'image_link',
+							url:
+								'https://cdn.pixabay.com/photo/2016/08/23/17/30/cup-1615074_1280.png',
+						},
+						{
+						  type: "text",
+						  text: `${user_info_data[idx].git_id}님의 달성률은\n\n${achi_rate(user_info_data[idx].today_count)}%입니다.\n\n` + comment,
+						  markdown: true
+						}
+					  ]
+				});
+			break;
+			
+		case 'user_rank':
+				var idx = -1;
+				for(var i = 0; i < user_info_data.length; i++){
+					if(user_info_data[i].conversation_id == message.conversation_id){
+						idx = i; break;
+					}
+				}
+			
+				var comment = eval(user_info_data[idx].today_rank, achi_rate(user_info_data[idx].today_count));
+			
+				libKakaoWork.sendMessage({
+					conversationId: message.conversation_id,
+					text: "알고있니 (Algo-Git-니)",
+					  blocks: [
+						{
+						  type: "header",
+						  text: "순위 알림",
+						  style: "blue"
+						},
+						 {
+							type: 'image_link',
+							url:
+								'https://cdn.pixabay.com/photo/2016/08/23/17/30/cup-1615074_1280.png',
+						},
+						{
+						  type: "text",
+						  text: `${user_info_data[idx].git_id}님의 순위는\n\n${user_info_data.length}명 중 ${user_info_data[idx].today_rank}등 입니다.\n\n` + comment,
+						  markdown: true
+						}
+					  ]
+				});
+			
+			break;
+			
 		case 'create_commit_challenge_results':
 			const github_url = 'https://github.com/' + actions.git_name;
+			console.log(github_url);
 			axios
 				.get(github_url)
 				.then((Response) => {
 					// commit_Crawling(actions.git_name);
 					if (Response.status === 200) {
 						// 유저 이름이 올바른 경우
-						if (app.checkUserExist(commit_cnt, actions.git_name)) {
+						if (app.checkUserExist(user_info_data, actions.git_name)) {
 							// 유저가 이미 챌린지에 포함되어 있음
+							console.log("userexists");
 							libKakaoWork.sendMessage({
 								conversationId: message.conversation_id,
 								text: '알고있니 (Algo-Git-니)',
@@ -436,25 +674,53 @@ router.post('/callback', async (req, res, next) => {
 									},
 									{
 										type: 'text',
-										text: `${actions.git_name}은 커밋 챌린지에 이미 참가되어 있습니다.\n다른 Git 아이디를 입력해 주세요.`,
+										text: `${actions.git_name}은 커밋 챌린지에 이미 참가되어 있습니다.\n`,
 										markdown: true,
+									},
+									{
+										type: 'button',
+										action_type: 'submit_action',
+										action_name: 'show_commit_challenge',
+										value: 'show_commit_challenge',
+										text: '커밋 챌린지 기능 확인하기',
+										style: 'primary',
 									},
 								],
 							});
-						} else {
+						}
+						else if (app.checkConversationExist(user_info_data, message.conversation_id)) {
+							console.log("conversation");
+							libKakaoWork.sendMessage({
+								conversationId: message.conversation_id,
+								text: '알고있니 (Algo-Git-니)',
+								blocks: [
+									{
+										type: 'header',
+										text: '커밋 챌린지 참가 오류 안내',
+										style: 'blue',
+									},
+									{
+										type: 'text',
+										text: '한 계정으로는 한 번만 커밋 챌린지에 참여할 수 있습니다.',
+										markdown: true,
+									},
+									{
+										type: 'button',
+										action_type: 'submit_action',
+										action_name: 'show_commit_challenge',
+										value: 'show_commit_challenge',
+										text: '커밋 챌린지 기능 확인하기',
+										style: 'primary',
+									},
+								],
+							});
+						}
+						else {
 							// 유저가 챌린지에 포함되어있지 않음
-							const userCommits = app
-								.getUserCommits(actions.git_name)
-								.then((commits) => {
-									fs.appendFile(
-										'user_info.csv',
-										`\n${actions.git_name},${commits}`, // 설문 제출 시 초기 추가내용.
-										function (err) {
-											if (err) throw err;
-										}
-									);
-									commit_cnt.push({ id: actions.git_name, count: commits });
-								});
+							// commit_info_add(message.conversation_id, actions.git_name);
+							// commit_cnt.push({ id: actions.git_name, count: commits });
+							app.initialUserInput(user_info_data, message.conversation_id, actions.git_name);
+							// rank();//
 							libKakaoWork.sendMessage({
 								conversationId: message.conversation_id,
 								text: '알고있니 (Algo-Git-니)',
@@ -468,28 +734,38 @@ router.post('/callback', async (req, res, next) => {
 										text:
 											'커밋 챌린지 신청이 완료되었습니다! 매일 10시에 관련 알람을 받아보실 수 있습니다.',
 									},
+									{
+										type: 'button',
+										action_type: 'submit_action',
+										action_name: 'show_commit_challenge',
+										value: 'show_commit_challenge',
+										text: '커밋 챌린지 기능 확인하기',
+										style: 'primary',
+									},
 								],
 							});
+							
 						}
 					}
 				})
 				.catch((Error) => {
+				console.log("error?");
 					libKakaoWork.sendMessage({
 						conversationId: message.conversation_id,
 						text: '알고있니 (Algo-Git-니)',
 						blocks: [
 							{
-								type: 'label',
-								text: '말씀하신 ID를 찾을 수 없었습니다\n다시 시도해 주세요',
+								type: 'header',
+								text: '커밋 챌린지 참여 안내',
 							},
 							{
-								type: 'button',
-								text: '바이바이',
-								style: 'default',
+								type: 'text',
+								text: '에러가 발생하였습니다.\n다시 시도해 주세요',
 							},
 						],
 					});
 				});
+			break;
 		case 'create_ps_study_results':
 			console.log('================== [create_ps_study_results] =================');
 			console.log(actions.repo_url);
@@ -663,7 +939,7 @@ router.post('/callback', async (req, res, next) => {
 					},
 					{
 						type: 'text',
-						text: '*📝 PS (알고리즘) 스터디 진행 안내*',
+						text: '*📝 PS (알고리즘) 스터디 진행 안내*\n\n만약 문제를 해결했다면, 커밋 메세지에는 *백준 온라인 문제 번호만* 적어주세요! 알고있니 봇은 커밋 메세지의 문제 번호를 기반으로 데이터를 입력합니다.',
 						markdown: true,
 					},
 					{
@@ -829,7 +1105,7 @@ router.post('/callback', async (req, res, next) => {
 				{
 					type: 'text',
 					text:
-						'*이런 문제, 알고있니?*\n\n알고있니 봇 사용자들의 해결 횟수 TOP 5 문제를 추천해드립니다.',
+						'*이런 문제, 알고있니?*\n\n알고있니 봇 사용자들의 해결 횟수 TOP 5 백준 온라인 문제를 추천해드립니다.',
 					markdown: true,
 				},
 				{
@@ -939,7 +1215,7 @@ router.post('/callback', async (req, res, next) => {
 					{
 						type: 'text',
 						text:
-							'GitHub 아이디를 입력하면, 일일 커밋 챌린지에 참여하게 됩니다. 일일 커밋 챌린지는 아래와 같은 기능을 제공합니다.\n\n',
+							'GitHub 아이디를 입력하면, 일일 커밋 챌린지에 참여하게 됩니다. 일일 커밋 챌린지는 아래와 같은 기능을 제공합니다.\n',
 						markdown: true,
 					},
 					{
@@ -965,7 +1241,7 @@ router.post('/callback', async (req, res, next) => {
 					{
 						type: 'text',
 						text:
-							'등록된 GitHub Repo 에 푼 문제를 커밋 & 푸시하면, DB 에 문제 데이터가 생성됩니다. 이에 따라 아래와 같은 기능들을 제공합니다.\n\n',
+							'등록된 GitHub Repo 에 푼 문제를 커밋 & 푸시하면, DB 에 문제 데이터가 생성됩니다. 이에 따라 아래와 같은 기능들을 제공합니다.\n',
 						markdown: true,
 					},
 					{
@@ -977,7 +1253,7 @@ router.post('/callback', async (req, res, next) => {
 					{
 						type: 'text',
 						text:
-							'*🎁  추천 문제 받기*\n알고있니 봇을 사용하는 모든 사용자들의 데이터 기반으로, 가장 많이 푼 문제를 추천해드립니다.',
+							'*🎁  추천 문제 받기*\n알고있니 봇을 사용하는 모든 사용자들의 데이터 기반으로, 가장 많이 푼 백준 온라인 문제를 추천해드립니다.',
 						markdown: true,
 					},
 					{
@@ -1047,7 +1323,7 @@ async function getSolvedNumArr(userId) {
 async function getMostSolvedProblemArr() {
 	var problemdict = {};
 	let arr = await Problem.find({});
-	console.log(arr);
+	// console.log(arr);
 
 	arr.forEach((element) => {
 		let userNum = element.user.length;
@@ -1063,7 +1339,7 @@ async function getMostSolvedProblemArr() {
 			return second[1] - first[1];
 		});
 	}
-	console.log(items.length);
+	// console.log(items.length);
 
 	var returnArr = [];
 
@@ -1075,22 +1351,31 @@ async function getMostSolvedProblemArr() {
 		//returnStr += items[step][0] + '번 문제는 총 ' + String(items[step][1]) + '번 풀렸어요\n';
 	}
 
-	console.log(returnArr);
+	// console.log(returnArr);
 
 	return returnArr;
 }
 
+// 자정에 csv 저장 및 user_info_data 값 업데이트
+router.get('/midnight', async (req, res, next) => {
+	// update user commits + rank and write to csv file
+	user_info_data = await app.updateCSV(user_info_data);
+	res.json({
+		statusCode: 200
+	})
+});
+
 // 사용자에게 매일 특정 시간에 커밋 알람이 가게 설정
 router.get('/commit', async (req, res, next) => {
 	const users = await libKakaoWork.getUserList();
-	const team19_users = [/*2611564,2612127,
-		 2612207, 2615809,
-		2610786,*/ 2610805];
+	const team19_users = [/*2611564,2612127,*/
+		 2612207/*, 2615809,
+		2610786, 2610805*/];
 
 	const conversations = await Promise.all(
 		//users.map((user) => libKakaoWork.openConversations({userId:user.id}))
 		team19_users.map((userid) => libKakaoWork.openConversations({ userId: userid }))
-	);
+	);	
 
 	// get a random url form baekjoon
 	// const randomUrl = Math.floor(Math.random() * 19000 + 1000);
@@ -1099,7 +1384,7 @@ router.get('/commit', async (req, res, next) => {
 	// TODO : DB 에서 가장 많이 푼 문제 (추천 문제) 넘겨주는 방식으로
 	const message = await Promise.all([
 		conversations.map((conversation) => {
-			var mostSolvedProblemArr = await getMostSolvedProblemArr();
+			var mostSolvedProblemArr = getMostSolvedProblemArr();
 			var problem_list_block = [
 				{
 					type: 'header',
@@ -1114,7 +1399,7 @@ router.get('/commit', async (req, res, next) => {
 				{
 					type: 'text',
 					text:
-						'*아직 커밋을 안 하셨군요?*\n\n사람들이 뽑은 추천 문제를 드립니다!',
+						'*아직 커밋을 안 하셨군요?*\n\n사람들이 뽑은 백준 온라인 추천 문제를 드립니다!',
 					markdown: true,
 				},
 				{
@@ -1186,8 +1471,24 @@ router.get('/commit', async (req, res, next) => {
 	]);
 });
 
-router.get('/commit-update', async (req, res, next) => {
-	
-});
+/*router.get('/commit-update', async (req, res, next) => {
+	user_info_data.map((user_info)=> {
+		axios.get('https://github-calendar.herokuapp.com/commits/' + tmp.git_id).then((crawlData) => {
+			var today = new Date();
+			var commitstring = JSON.stringify(crawlData.data);
+			var commitlist = commitstring.substring(9, commitstring.length - 2).split(',');
+			commitlist = commitlist.slice(
+				commitlist.length - today.getDate() - 1,
+				commitlist.length - 1
+			);
+			for (var i = 0; i < commitlist.length; i++) {
+				console.log(i + 1 + '일: ' + commitlist[i]);
+			}
+			user_info.last_rank = user_info.today_rank;
+			
+			
+		});
+	})
+});*/
 
 module.exports = router;
