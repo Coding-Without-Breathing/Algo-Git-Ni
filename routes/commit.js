@@ -165,6 +165,7 @@ initialUserInput = async (userData, conversation_id, git_id) => {
 				commitlist.length - today.getDate() - 1,
 				commitlist.length - 1
 			);
+			
 			for (var i = 0; i < commitlist.length - 1; i++) {
 				if (commitlist[i] != 0) commit_cnt++;
 			}
