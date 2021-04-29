@@ -69,7 +69,9 @@
 ---
 
 ### 알고리즘 스터디 운영 기능
-스터디 운영을 위해서라면, **스터디 전용 Git Repository 생성**이 필요합니다.
+스터디 운영을 위해서라면, **스터디 전용 Git Repository 생성**이 필요합니다. 이때, Git Repository 는 반드시 **Public** 상태여야 합니다. 또한, 이 Repo 에 푸시하는 커밋 메세지는 모두 '**문제 번호**' 로만 입력해야 올바르게 동작합니다. 
+> ex) git commit -m "3245"
+
 '**PS 스터디 개설하기**' 를 클릭하게 되면 스터디를 진행할 Repository 와, 본인의 GitHub ID 를 입력하는 모달 뷰를 수신합니다.
 
 <img width="346" alt="스터디등록창" src="https://user-images.githubusercontent.com/30336663/116608656-6c18e680-a96e-11eb-8bc5-45bbfeb24af9.png">
