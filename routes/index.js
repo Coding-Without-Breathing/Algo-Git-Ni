@@ -223,15 +223,15 @@ router.post('/chatbot', async (req, res, next) => {
 
 	// call data from .csv file on server start
 
-	console.log(userArr);
+	//console.log(userArr);
 
 	user_info_data = app.readCSV();
 
 	// 검색된 모든 유저에게 각각 채팅방 생성 (2)
 	let conversations = await Promise.all(
 		//users.map((user) => libKakaoWork.openConversations({userId:user.id}))
-		team19_users.map((userid) => libKakaoWork.openConversations({ userId: userid }))
-		// userArr.map((userid) => libKakaoWork.openConversations({ userId: userid }))
+		//team19_users.map((userid) => libKakaoWork.openConversations({ userId: userid }))
+		userArr.map((userid) => libKakaoWork.openConversations({ userId: userid }))
 	);
 	
 	// 생성된 채팅방에 메세지 전송 (3)
@@ -246,7 +246,8 @@ router.post('/chatbot', async (req, res, next) => {
 				// commit 기능에서 이미 데이터에 등록되어있는 경우
 				libKakaoWork.sendMessage({
 					conversationId: conversation.id,
-					text: '커밋 챌린지 | PS 스터디 개설 안내',
+					text: '무호흡코딩(소마 19팀)',
+					//네 여기에요
 					blocks: [
 						{
 							type: 'header',
@@ -298,7 +299,8 @@ router.post('/chatbot', async (req, res, next) => {
 				// 등록 되어있지않은 경우
 				libKakaoWork.sendMessage({
 					conversationId: conversation.id,
-					text: '커밋 챌린지 | PS 스터디 개설 안내',
+					text: '무호흡코딩(소마 19팀)',
+					//text: '커밋 챌린지 | PS 스터디 개설 안내',
 					blocks: [
 						{
 							type: 'header',
